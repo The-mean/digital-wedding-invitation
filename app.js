@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const cookieParser = require('cookie-parser');
 require('dotenv').config();
 
 const authController = require('./controllers/authController');
@@ -29,13 +30,19 @@ const emailPreferenceController = require('./controllers/emailPreferenceControll
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true
+}));
 app.use(express.json());
+app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Auth Routes
 app.post('/api/register', registerValidation, validate, authController.register);
 app.post('/api/login', loginValidation, validate, authController.login);
+app.post('/api/logout', authController.logout);
+app.post('/api/refresh-token', authController.refreshToken);
 app.post('/api/request-reset', resetPasswordValidation, validate, authController.requestPasswordReset);
 app.post('/api/reset-password', newPasswordValidation, validate, authController.resetPassword);
 

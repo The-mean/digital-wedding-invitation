@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const User = require('../models/User');
+const RefreshToken = require('../models/RefreshToken');
 require('dotenv').config();
 
 const transporter = nodemailer.createTransport({
@@ -15,8 +16,8 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-const generateToken = (userId) => {
-    return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '24h' });
+const generateAccessToken = (userId) => {
+    return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '15m' });
 };
 
 exports.register = async (req, res) => {
@@ -29,10 +30,23 @@ exports.register = async (req, res) => {
         }
 
         const userId = await User.create({ email, password, name });
-        const token = generateToken(userId);
+        const accessToken = generateAccessToken(userId);
+        const refreshToken = await RefreshToken.generate(userId);
 
-        res.status(201).json({ token, userId });
+        // Set refresh token in httpOnly cookie
+        res.cookie('refreshToken', refreshToken.token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+        });
+
+        res.status(201).json({
+            accessToken,
+            user: { id: userId, email, name }
+        });
     } catch (error) {
+        console.error(error);
         res.status(500).json({ message: 'Error creating user' });
     }
 };
@@ -51,10 +65,79 @@ exports.login = async (req, res) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
-        const token = generateToken(user.id);
-        res.json({ token, userId: user.id });
+        // Generate new tokens
+        const accessToken = generateAccessToken(user.id);
+        const refreshToken = await RefreshToken.generate(user.id);
+
+        // Set refresh token in httpOnly cookie
+        res.cookie('refreshToken', refreshToken.token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+        });
+
+        res.json({
+            accessToken,
+            user: { id: user.id, email: user.email, name: user.name }
+        });
     } catch (error) {
+        console.error(error);
         res.status(500).json({ message: 'Error during login' });
+    }
+};
+
+exports.refreshToken = async (req, res) => {
+    try {
+        const { refreshToken } = req.cookies;
+
+        if (!refreshToken) {
+            return res.status(401).json({ message: 'Refresh token required' });
+        }
+
+        const tokenData = await RefreshToken.verify(refreshToken);
+        if (!tokenData) {
+            return res.status(401).json({ message: 'Invalid refresh token' });
+        }
+
+        // Generate new tokens
+        const accessToken = generateAccessToken(tokenData.user_id);
+        const newRefreshToken = await RefreshToken.rotateToken(refreshToken, tokenData.user_id);
+
+        // Set new refresh token in cookie
+        res.cookie('refreshToken', newRefreshToken.token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+        });
+
+        res.json({ accessToken });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error refreshing token' });
+    }
+};
+
+exports.logout = async (req, res) => {
+    try {
+        const { refreshToken } = req.cookies;
+
+        if (refreshToken) {
+            await RefreshToken.deleteByToken(refreshToken);
+        }
+
+        // Clear the refresh token cookie
+        res.clearCookie('refreshToken', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict'
+        });
+
+        res.json({ message: 'Logged out successfully' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error during logout' });
     }
 };
 
