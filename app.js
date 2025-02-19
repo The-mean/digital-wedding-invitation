@@ -101,6 +101,12 @@ app.get('/api/profile', auth, (req, res) => {
     res.json({ message: 'Protected route accessed successfully', userId: req.user.userId });
 });
 
+// QR Code Regeneration Route
+app.post('/api/invitations/:id/regenerate-qr',
+    auth,
+    invitationController.regenerateQRCode
+);
+
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);
