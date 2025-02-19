@@ -1,5 +1,7 @@
 const Rsvp = require('../models/Rsvp');
 const Invitation = require('../models/Invitation');
+const EmailPreference = require('../models/EmailPreference');
+const EmailReminder = require('../models/EmailReminder');
 const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
@@ -41,7 +43,15 @@ exports.submitRsvp = async (req, res) => {
             return res.status(400).json({ message: 'You have already responded to this invitation' });
         }
 
-        await Rsvp.create(invitation.id, rsvpData);
+        // Create RSVP response
+        const rsvpId = await Rsvp.create(invitation.id, rsvpData);
+
+        // Create email preferences
+        if (rsvpData.attending) {
+            await EmailPreference.create(rsvpId);
+            // Schedule reminders if attending
+            await EmailReminder.scheduleReminders(invitation.id, invitation.wedding_date);
+        }
 
         // Send confirmation email
         await transporter.sendMail({
@@ -53,7 +63,12 @@ exports.submitRsvp = async (req, res) => {
                 <p>We have received your response for the following event:</p>
                 <p><strong>${invitation.title}</strong></p>
                 <p>Your response: ${rsvpData.attending ? 'Attending' : 'Not Attending'}</p>
-                ${rsvpData.attending ? `<p>Number of guests: ${rsvpData.numberOfGuests}</p>` : ''}
+                ${rsvpData.attending ? `
+                    <p>Number of guests: ${rsvpData.numberOfGuests}</p>
+                    <p>You will receive email reminders as the wedding date approaches.</p>
+                    <p>To manage your email preferences, please visit:</p>
+                    <p><a href="${process.env.BASE_URL}/invitations/${code}/preferences?email=${rsvpData.guestEmail}">Manage Email Preferences</a></p>
+                ` : ''}
                 <p>Date: ${new Date(invitation.wedding_date).toLocaleDateString()}</p>
                 ${rsvpData.dietaryRequirements ? `<p>Dietary requirements: ${rsvpData.dietaryRequirements}</p>` : ''}
             `

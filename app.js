@@ -24,6 +24,7 @@ const {
     updateRsvpValidation,
     rsvpLimiter,
 } = require('./middleware/rsvpValidators');
+const emailPreferenceController = require('./controllers/emailPreferenceController');
 
 const app = express();
 
@@ -105,6 +106,15 @@ app.get('/api/profile', auth, (req, res) => {
 app.post('/api/invitations/:id/regenerate-qr',
     auth,
     invitationController.regenerateQRCode
+);
+
+// Email Preferences Routes
+app.get('/invitations/:code/preferences',
+    emailPreferenceController.getPreferences
+);
+
+app.put('/invitations/:code/preferences',
+    emailPreferenceController.updatePreferences
 );
 
 // Error handling middleware

@@ -46,4 +46,32 @@ CREATE TABLE IF NOT EXISTS rsvp_responses (
     INDEX idx_invitation_id (invitation_id),
     INDEX idx_guest_email (guest_email),
     UNIQUE KEY unique_guest_invitation (guest_email, invitation_id)
+);
+
+CREATE TABLE IF NOT EXISTS email_preferences (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    rsvp_response_id INT NOT NULL,
+    reminder_enabled BOOLEAN DEFAULT TRUE,
+    one_month_reminder BOOLEAN DEFAULT TRUE,
+    one_week_reminder BOOLEAN DEFAULT TRUE,
+    one_day_reminder BOOLEAN DEFAULT TRUE,
+    last_reminder_sent DATETIME,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (rsvp_response_id) REFERENCES rsvp_responses(id) ON DELETE CASCADE,
+    INDEX idx_rsvp_response (rsvp_response_id)
+);
+
+CREATE TABLE IF NOT EXISTS email_reminders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    invitation_id INT NOT NULL,
+    reminder_type ENUM('one_month', 'one_week', 'one_day') NOT NULL,
+    scheduled_date DATETIME NOT NULL,
+    sent_date DATETIME,
+    status ENUM('pending', 'sent', 'failed') DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (invitation_id) REFERENCES invitations(id) ON DELETE CASCADE,
+    INDEX idx_invitation_status (invitation_id, status),
+    INDEX idx_scheduled_date (scheduled_date)
 ); 
