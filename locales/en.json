@@ -1,0 +1,98 @@
+{
+    "common": {
+        "welcome": "Welcome",
+        "save": "Save",
+        "cancel": "Cancel",
+        "delete": "Delete",
+        "edit": "Edit",
+        "create": "Create",
+        "update": "Update",
+        "loading": "Loading...",
+        "error": "Error",
+        "success": "Success"
+    },
+    "auth": {
+        "login": "Login",
+        "register": "Register",
+        "logout": "Logout",
+        "email": "Email",
+        "password": "Password",
+        "confirmPassword": "Confirm Password",
+        "forgotPassword": "Forgot Password",
+        "resetPassword": "Reset Password",
+        "loginSuccess": "Login successful",
+        "registerSuccess": "Registration successful",
+        "passwordResetSuccess": "Password reset successful"
+    },
+    "invitation": {
+        "create": "Create Invitation",
+        "edit": "Edit Invitation",
+        "delete": "Delete Invitation",
+        "title": "Title",
+        "message": "Message",
+        "weddingDate": "Wedding Date",
+        "location": "Location",
+        "image": "Image",
+        "qrCode": "QR Code",
+        "shareableLink": "Shareable Link",
+        "createSuccess": "Invitation created successfully",
+        "updateSuccess": "Invitation updated successfully",
+        "deleteSuccess": "Invitation deleted successfully"
+    },
+    "rsvp": {
+        "submit": "Submit RSVP",
+        "update": "Update RSVP",
+        "attending": "Attending",
+        "notAttending": "Not Attending",
+        "guestName": "Guest Name",
+        "guestEmail": "Guest Email",
+        "numberOfGuests": "Number of Guests",
+        "dietaryRequirements": "Dietary Requirements",
+        "message": "Message",
+        "submitSuccess": "RSVP submitted successfully",
+        "updateSuccess": "RSVP updated successfully",
+        "confirmationRequired": "Please check your email and confirm your RSVP"
+    },
+    "seating": {
+        "title": "Seating Arrangement",
+        "table": "Table",
+        "addTable": "Add Table",
+        "editTable": "Edit Table",
+        "deleteTable": "Delete Table",
+        "capacity": "Capacity",
+        "assignGuest": "Assign Guest",
+        "unassignGuest": "Unassign Guest",
+        "tableNumber": "Table Number"
+    },
+    "gifts": {
+        "title": "Gift Registry",
+        "addGift": "Add Gift",
+        "editGift": "Edit Gift",
+        "deleteGift": "Delete Gift",
+        "giftName": "Gift Name",
+        "giftLink": "Gift Link",
+        "giftPrice": "Price",
+        "giftStatus": "Status",
+        "reserved": "Reserved",
+        "available": "Available"
+    },
+    "planner": {
+        "title": "Wedding Planner",
+        "addTask": "Add Task",
+        "editTask": "Edit Task",
+        "deleteTask": "Delete Task",
+        "taskName": "Task Name",
+        "dueDate": "Due Date",
+        "status": "Status",
+        "priority": "Priority",
+        "category": "Category",
+        "budget": "Budget"
+    },
+    "notifications": {
+        "title": "Notifications",
+        "markAsRead": "Mark as Read",
+        "markAllAsRead": "Mark All as Read",
+        "deleteAll": "Delete All",
+        "noNotifications": "No notifications"
+    }
+}

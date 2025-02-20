@@ -3,6 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const apiLogger = require('./middleware/apiLogger');
+const languageMiddleware = require('./middleware/languageMiddleware');
 const { logSecurityEvent } = require('./services/loggerService');
 require('dotenv').config();
 
@@ -43,6 +44,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // API Loglama Middleware'i
 app.use(apiLogger);
+
+// Dil desteği middleware'i
+app.use(languageMiddleware);
 
 // Güvenlik olaylarını loglamak için özel middleware
 const securityLogger = (req, res, next) => {
@@ -184,6 +188,31 @@ app.get('/invitations/:code/preferences',
 app.put('/invitations/:code/preferences',
     emailPreferenceController.updatePreferences
 );
+
+// Dil değiştirme endpoint'i
+app.post('/api/language', (req, res) => {
+    const { language } = req.body;
+
+    if (!['tr', 'en'].includes(language)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Unsupported language'
+        });
+    }
+
+    res.cookie('preferredLanguage', language, {
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict'
+    });
+
+    res.json({
+        success: true,
+        message: 'Language preference updated',
+        language
+    });
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {

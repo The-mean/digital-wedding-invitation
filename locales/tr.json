@@ -1,0 +1,98 @@
+{
+    "common": {
+        "welcome": "Hoş Geldiniz",
+        "save": "Kaydet",
+        "cancel": "İptal",
+        "delete": "Sil",
+        "edit": "Düzenle",
+        "create": "Oluştur",
+        "update": "Güncelle",
+        "loading": "Yükleniyor...",
+        "error": "Hata",
+        "success": "Başarılı"
+    },
+    "auth": {
+        "login": "Giriş Yap",
+        "register": "Kayıt Ol",
+        "logout": "Çıkış Yap",
+        "email": "E-posta",
+        "password": "Şifre",
+        "confirmPassword": "Şifre Tekrar",
+        "forgotPassword": "Şifremi Unuttum",
+        "resetPassword": "Şifre Sıfırla",
+        "loginSuccess": "Giriş başarılı",
+        "registerSuccess": "Kayıt başarılı",
+        "passwordResetSuccess": "Şifre başarıyla sıfırlandı"
+    },
+    "invitation": {
+        "create": "Davetiye Oluştur",
+        "edit": "Davetiye Düzenle",
+        "delete": "Davetiye Sil",
+        "title": "Başlık",
+        "message": "Mesaj",
+        "weddingDate": "Düğün Tarihi",
+        "location": "Konum",
+        "image": "Resim",
+        "qrCode": "QR Kod",
+        "shareableLink": "Paylaşım Linki",
+        "createSuccess": "Davetiye başarıyla oluşturuldu",
+        "updateSuccess": "Davetiye başarıyla güncellendi",
+        "deleteSuccess": "Davetiye başarıyla silindi"
+    },
+    "rsvp": {
+        "submit": "RSVP Gönder",
+        "update": "RSVP Güncelle",
+        "attending": "Katılıyorum",
+        "notAttending": "Katılamıyorum",
+        "guestName": "Misafir Adı",
+        "guestEmail": "Misafir E-posta",
+        "numberOfGuests": "Misafir Sayısı",
+        "dietaryRequirements": "Diyet Gereksinimleri",
+        "message": "Mesaj",
+        "submitSuccess": "RSVP başarıyla gönderildi",
+        "updateSuccess": "RSVP başarıyla güncellendi",
+        "confirmationRequired": "Lütfen e-postanızı kontrol edin ve RSVP'nizi onaylayın"
+    },
+    "seating": {
+        "title": "Oturma Düzeni",
+        "table": "Masa",
+        "addTable": "Masa Ekle",
+        "editTable": "Masa Düzenle",
+        "deleteTable": "Masa Sil",
+        "capacity": "Kapasite",
+        "assignGuest": "Misafir Ata",
+        "unassignGuest": "Misafir Kaldır",
+        "tableNumber": "Masa Numarası"
+    },
+    "gifts": {
+        "title": "Hediye Listesi",
+        "addGift": "Hediye Ekle",
+        "editGift": "Hediye Düzenle",
+        "deleteGift": "Hediye Sil",
+        "giftName": "Hediye Adı",
+        "giftLink": "Hediye Linki",
+        "giftPrice": "Fiyat",
+        "giftStatus": "Durum",
+        "reserved": "Rezerve Edildi",
+        "available": "Müsait"
+    },
+    "planner": {
+        "title": "Düğün Planlayıcı",
+        "addTask": "Görev Ekle",
+        "editTask": "Görev Düzenle",
+        "deleteTask": "Görev Sil",
+        "taskName": "Görev Adı",
+        "dueDate": "Tarih",
+        "status": "Durum",
+        "priority": "Öncelik",
+        "category": "Kategori",
+        "budget": "Bütçe"
+    },
+    "notifications": {
+        "title": "Bildirimler",
+        "markAsRead": "Okundu Olarak İşaretle",
+        "markAllAsRead": "Tümünü Okundu Olarak İşaretle",
+        "deleteAll": "Tümünü Sil",
+        "noNotifications": "Bildirim yok"
+    }
+}
