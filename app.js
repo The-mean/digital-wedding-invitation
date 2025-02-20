@@ -9,6 +9,7 @@ const invitationController = require('./controllers/invitationController');
 const rsvpController = require('./controllers/rsvpController');
 const auth = require('./middleware/auth');
 const upload = require('./middleware/upload');
+const { loginLimiter, registerLimiter } = require('./middleware/authLimiter');
 const {
     registerValidation,
     loginValidation,
@@ -38,13 +39,36 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Auth Routes
-app.post('/api/register', registerValidation, validate, authController.register);
-app.post('/api/login', loginValidation, validate, authController.login);
+// Auth Routes with rate limiting
+app.post('/api/register',
+    registerLimiter,
+    registerValidation,
+    validate,
+    authController.register
+);
+
+app.post('/api/login',
+    loginLimiter,
+    loginValidation,
+    validate,
+    authController.login
+);
+
 app.post('/api/logout', authController.logout);
 app.post('/api/refresh-token', authController.refreshToken);
-app.post('/api/request-reset', resetPasswordValidation, validate, authController.requestPasswordReset);
-app.post('/api/reset-password', newPasswordValidation, validate, authController.resetPassword);
+
+app.post('/api/request-reset',
+    passwordResetLimiter,
+    resetPasswordValidation,
+    validate,
+    authController.requestPasswordReset
+);
+
+app.post('/api/reset-password',
+    newPasswordValidation,
+    validate,
+    authController.resetPassword
+);
 
 // Protected Invitation Routes
 app.post('/api/invitations',
@@ -86,6 +110,16 @@ app.post('/invitations/:code/rsvp',
     rsvpLimiter,
     rsvpValidation,
     rsvpController.submitRsvp
+);
+
+// RSVP Confirmation Routes
+app.get('/api/rsvp/confirm/:token',
+    rsvpController.confirmRsvp
+);
+
+app.post('/api/rsvp/:id/resend-confirmation',
+    rsvpLimiter,
+    rsvpController.resendConfirmation
 );
 
 app.put('/invitations/:code/rsvp',

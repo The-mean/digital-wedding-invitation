@@ -20,6 +20,16 @@ const generateAccessToken = (userId) => {
     return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '15m' });
 };
 
+const setRefreshTokenCookie = (res, token) => {
+    res.cookie('refreshToken', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        path: '/api/refresh-token' // Restrict cookie to refresh token endpoint
+    });
+};
+
 exports.register = async (req, res) => {
     try {
         const { email, password, name } = req.body;
@@ -34,12 +44,7 @@ exports.register = async (req, res) => {
         const refreshToken = await RefreshToken.generate(userId);
 
         // Set refresh token in httpOnly cookie
-        res.cookie('refreshToken', refreshToken.token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
-        });
+        setRefreshTokenCookie(res, refreshToken.token);
 
         res.status(201).json({
             accessToken,
@@ -65,17 +70,15 @@ exports.login = async (req, res) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
+        // Invalidate all existing refresh tokens for this user
+        await RefreshToken.deleteAllUserTokens(user.id);
+
         // Generate new tokens
         const accessToken = generateAccessToken(user.id);
         const refreshToken = await RefreshToken.generate(user.id);
 
         // Set refresh token in httpOnly cookie
-        res.cookie('refreshToken', refreshToken.token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
-        });
+        setRefreshTokenCookie(res, refreshToken.token);
 
         res.json({
             accessToken,
@@ -97,6 +100,13 @@ exports.refreshToken = async (req, res) => {
 
         const tokenData = await RefreshToken.verify(refreshToken);
         if (!tokenData) {
+            // Clear the invalid refresh token cookie
+            res.clearCookie('refreshToken', {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                path: '/api/refresh-token'
+            });
             return res.status(401).json({ message: 'Invalid refresh token' });
         }
 
@@ -105,12 +115,7 @@ exports.refreshToken = async (req, res) => {
         const newRefreshToken = await RefreshToken.rotateToken(refreshToken, tokenData.user_id);
 
         // Set new refresh token in cookie
-        res.cookie('refreshToken', newRefreshToken.token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
-        });
+        setRefreshTokenCookie(res, newRefreshToken.token);
 
         res.json({ accessToken });
     } catch (error) {
@@ -124,6 +129,7 @@ exports.logout = async (req, res) => {
         const { refreshToken } = req.cookies;
 
         if (refreshToken) {
+            // Invalidate the refresh token in the database
             await RefreshToken.deleteByToken(refreshToken);
         }
 
@@ -131,7 +137,8 @@ exports.logout = async (req, res) => {
         res.clearCookie('refreshToken', {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict'
+            sameSite: 'strict',
+            path: '/api/refresh-token'
         });
 
         res.json({ message: 'Logged out successfully' });
