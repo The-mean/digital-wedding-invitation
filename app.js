@@ -10,6 +10,7 @@ require('dotenv').config();
 const authController = require('./controllers/authController');
 const invitationController = require('./controllers/invitationController');
 const rsvpController = require('./controllers/rsvpController');
+const tableRoutes = require('./routes/tableRoutes');
 const auth = require('./middleware/auth');
 const upload = require('./middleware/upload');
 const { loginLimiter, registerLimiter } = require('./middleware/authLimiter');
@@ -213,6 +214,9 @@ app.post('/api/language', (req, res) => {
         language
     });
 });
+
+// Masa yönetimi route'larını ekle
+app.use('/api', tableRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
