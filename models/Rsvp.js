@@ -35,19 +35,19 @@ class Rsvp {
                 message
             } = rsvpData;
 
-            // Generate confirmation token
+            // Generate confirmation token with expiration
             const confirmationToken = crypto.randomBytes(32).toString('hex');
-            const tokenExpires = new Date();
-            tokenExpires.setHours(tokenExpires.getHours() + 24); // Token expires in 24 hours
+            const confirmationExpiresAt = new Date();
+            confirmationExpiresAt.setHours(confirmationExpiresAt.getHours() + 24);
 
             // Create RSVP response
             const [result] = await connection.execute(
                 `INSERT INTO rsvp_responses 
                 (invitation_id, guest_name, guest_email, attending, number_of_guests, 
-                dietary_requirements, message, confirmation_token, confirmation_token_expires) 
+                dietary_requirements, message, confirmation_token, confirmation_expires_at) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [invitationId, guestName, guestEmail, attending, numberOfGuests,
-                    dietaryRequirements, message, confirmationToken, tokenExpires]
+                    dietaryRequirements, message, confirmationToken, confirmationExpiresAt]
             );
 
             // Log the creation in history
@@ -63,7 +63,8 @@ class Rsvp {
             await connection.commit();
             return {
                 id: result.insertId,
-                confirmationToken
+                confirmationToken,
+                expiresAt: confirmationExpiresAt
             };
         } catch (error) {
             await connection.rollback();
@@ -157,42 +158,71 @@ class Rsvp {
         try {
             await connection.beginTransaction();
 
-            // Find and validate token
+            // Find and validate token with expiration check
             const [rows] = await connection.execute(
-                `SELECT id, confirmed_at, confirmation_token_expires 
-                FROM rsvp_responses 
-                WHERE confirmation_token = ? AND ${this.DEFAULT_WHERE}`,
+                `SELECT r.*, i.title, i.wedding_date 
+                FROM rsvp_responses r
+                JOIN invitations i ON r.invitation_id = i.id
+                WHERE r.confirmation_token = ? 
+                AND r.confirmed_at IS NULL 
+                AND r.confirmation_expires_at > NOW()
+                AND ${this.DEFAULT_WHERE}`,
                 [token]
             );
 
             if (rows.length === 0) {
-                throw new Error('Invalid confirmation token');
+                // Check if token exists but is expired or already confirmed
+                const [tokenCheck] = await connection.execute(
+                    `SELECT 
+                        CASE 
+                            WHEN confirmed_at IS NOT NULL THEN 'ALREADY_CONFIRMED'
+                            WHEN confirmation_expires_at <= NOW() THEN 'EXPIRED'
+                            ELSE 'INVALID'
+                        END as status,
+                        confirmation_expires_at
+                    FROM rsvp_responses 
+                    WHERE confirmation_token = ? AND ${this.DEFAULT_WHERE}`,
+                    [token]
+                );
+
+                if (tokenCheck.length > 0) {
+                    throw new Error(tokenCheck[0].status);
+                }
+                throw new Error('INVALID_TOKEN');
             }
 
             const rsvp = rows[0];
 
-            // Check if already confirmed
-            if (rsvp.confirmed_at) {
-                throw new Error('RSVP already confirmed');
-            }
-
-            // Check if token expired
-            if (new Date(rsvp.confirmation_token_expires) < new Date()) {
-                throw new Error('Confirmation token has expired');
-            }
-
-            // Confirm RSVP
+            // Confirm RSVP and clear confirmation token
             await connection.execute(
                 `UPDATE rsvp_responses 
                 SET confirmed_at = CURRENT_TIMESTAMP,
-                confirmation_token = NULL,
-                confirmation_token_expires = NULL 
+                    confirmation_token = NULL,
+                    confirmation_expires_at = NULL 
                 WHERE id = ? AND ${this.DEFAULT_WHERE}`,
                 [rsvp.id]
             );
 
+            // Log confirmation in history
+            await connection.execute(
+                `INSERT INTO rsvp_history 
+                (rsvp_id, guest_name, attending, number_of_guests, 
+                dietary_requirements, message, change_type) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [rsvp.id, rsvp.guest_name, rsvp.attending, rsvp.number_of_guests,
+                rsvp.dietary_requirements, rsvp.message, 'CONFIRM']
+            );
+
             await connection.commit();
-            return true;
+            return {
+                rsvpId: rsvp.id,
+                guestName: rsvp.guest_name,
+                guestEmail: rsvp.guest_email,
+                attending: rsvp.attending,
+                eventTitle: rsvp.title,
+                weddingDate: rsvp.wedding_date,
+                invitation_id: rsvp.invitation_id
+            };
         } catch (error) {
             await connection.rollback();
             throw error;
@@ -367,27 +397,44 @@ class Rsvp {
     }
 
     static async regenerateConfirmationToken(id) {
-        const confirmationToken = crypto.randomBytes(32).toString('hex');
-        const tokenExpires = new Date();
-        tokenExpires.setHours(tokenExpires.getHours() + 24);
+        const connection = await db.getConnection();
+        try {
+            await connection.beginTransaction();
 
-        const [result] = await db.execute(
-            `UPDATE rsvp_responses 
-            SET confirmation_token = ?,
-            confirmation_token_expires = ?,
-            confirmed_at = NULL 
-            WHERE id = ?`,
-            [confirmationToken, tokenExpires, id]
-        );
+            // Check if RSVP exists and is not already confirmed
+            const [rsvp] = await connection.execute(
+                `SELECT id FROM rsvp_responses 
+                WHERE id = ? AND confirmed_at IS NULL AND ${this.DEFAULT_WHERE}`,
+                [id]
+            );
 
-        if (result.affectedRows === 0) {
-            throw new Error('RSVP response not found');
+            if (rsvp.length === 0) {
+                throw new Error('RSVP_NOT_FOUND_OR_CONFIRMED');
+            }
+
+            const confirmationToken = crypto.randomBytes(32).toString('hex');
+            const confirmationExpiresAt = new Date();
+            confirmationExpiresAt.setHours(confirmationExpiresAt.getHours() + 24);
+
+            await connection.execute(
+                `UPDATE rsvp_responses 
+                SET confirmation_token = ?,
+                    confirmation_expires_at = ?
+                WHERE id = ?`,
+                [confirmationToken, confirmationExpiresAt, id]
+            );
+
+            await connection.commit();
+            return {
+                confirmationToken,
+                expiresAt: confirmationExpiresAt
+            };
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
         }
-
-        return {
-            confirmationToken,
-            tokenExpires
-        };
     }
 
     static async isConfirmed(id) {

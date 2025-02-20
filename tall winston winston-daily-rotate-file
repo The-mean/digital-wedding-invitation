@@ -1,0 +1,5 @@
+[33maa917a9[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m Initial commit: Wedding invitation system with RSVP functionality
+[33meb8cfc8[m Add refresh token mechanism with secure cookie storage
+[33md5031fd[m Add email reminder system with customizable preferences
+[33m8edb8af[m Enhanced QR code generation with better error handling and regeneration feature
+[33m062bed0[m Add RSVP management system with email notifications and rate limiting

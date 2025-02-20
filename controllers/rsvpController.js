@@ -66,53 +66,42 @@ exports.submitRsvp = async (req, res) => {
 exports.confirmRsvp = async (req, res) => {
     try {
         const { token } = req.params;
-
-        const confirmationResult = await Rsvp.confirmRsvp(token);
-
-        // Create email preferences if attending
-        if (confirmationResult.attending) {
-            await EmailPreference.create(confirmationResult.rsvpId);
-            await EmailReminder.scheduleReminders(confirmationResult.invitation_id, confirmationResult.weddingDate);
+        if (!token) {
+            return res.status(400).json({
+                success: false,
+                error: 'Confirmation token is required'
+            });
         }
 
-        // Send confirmation success email
-        await sendConfirmationSuccessEmail(
-            confirmationResult.guestName,
-            confirmationResult.eventTitle,
-            confirmationResult.weddingDate,
-            confirmationResult.attending
-        );
+        const rsvpDetails = await Rsvp.confirmRsvp(token);
 
-        res.json({
-            message: 'RSVP confirmed successfully. Thank you for confirming your response!',
-            details: {
-                guestName: confirmationResult.guestName,
-                eventTitle: confirmationResult.eventTitle,
-                weddingDate: confirmationResult.weddingDate,
-                attending: confirmationResult.attending
-            }
+        return res.json({
+            success: true,
+            message: 'RSVP confirmed successfully',
+            data: rsvpDetails
         });
     } catch (error) {
-        console.error(error);
-        if (error.message === 'Invalid confirmation token') {
-            return res.status(400).json({
-                message: 'Invalid or expired confirmation link. Please request a new confirmation link.',
-                code: 'INVALID_TOKEN'
-            });
-        }
-        if (error.message === 'RSVP already confirmed') {
-            return res.status(400).json({
-                message: 'This RSVP has already been confirmed',
-                code: 'ALREADY_CONFIRMED'
-            });
-        }
-        if (error.message === 'The wedding date has passed') {
-            return res.status(400).json({
-                message: 'Cannot confirm RSVP: The wedding date has passed',
-                code: 'EVENT_PASSED'
-            });
-        }
-        res.status(500).json({ message: 'Error confirming RSVP' });
+        const errorMessages = {
+            'EXPIRED': 'The confirmation link has expired. Please request a new one.',
+            'ALREADY_CONFIRMED': 'This RSVP has already been confirmed.',
+            'INVALID_TOKEN': 'Invalid confirmation link.',
+            'RSVP_NOT_FOUND': 'RSVP response not found.'
+        };
+
+        const statusCodes = {
+            'EXPIRED': 410,
+            'ALREADY_CONFIRMED': 409,
+            'INVALID_TOKEN': 400,
+            'RSVP_NOT_FOUND': 404
+        };
+
+        const errorMessage = errorMessages[error.message] || 'An error occurred while confirming your RSVP';
+        const statusCode = statusCodes[error.message] || 500;
+
+        return res.status(statusCode).json({
+            success: false,
+            error: errorMessage
+        });
     }
 };
 
@@ -507,5 +496,40 @@ exports.restoreRsvp = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error restoring RSVP response' });
+    }
+};
+
+exports.regenerateConfirmationLink = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({
+                success: false,
+                error: 'RSVP ID is required'
+            });
+        }
+
+        const { confirmationToken, expiresAt } = await Rsvp.regenerateConfirmationToken(id);
+
+        // Generate confirmation URL (you might want to move this to a config)
+        const confirmationUrl = `${process.env.APP_URL}/rsvp/confirm/${confirmationToken}`;
+
+        return res.json({
+            success: true,
+            message: 'New confirmation link generated successfully',
+            data: {
+                confirmationUrl,
+                expiresAt
+            }
+        });
+    } catch (error) {
+        const errorMessage = error.message === 'RSVP_NOT_FOUND_OR_CONFIRMED'
+            ? 'RSVP not found or already confirmed'
+            : 'An error occurred while generating new confirmation link';
+
+        return res.status(error.message === 'RSVP_NOT_FOUND_OR_CONFIRMED' ? 404 : 500).json({
+            success: false,
+            error: errorMessage
+        });
     }
 }; 

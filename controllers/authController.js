@@ -95,7 +95,10 @@ exports.refreshToken = async (req, res) => {
         const { refreshToken } = req.cookies;
 
         if (!refreshToken) {
-            return res.status(401).json({ message: 'Refresh token required' });
+            return res.status(401).json({
+                message: 'Refresh token required',
+                code: 'TOKEN_MISSING'
+            });
         }
 
         const tokenData = await RefreshToken.verify(refreshToken);
@@ -107,7 +110,10 @@ exports.refreshToken = async (req, res) => {
                 sameSite: 'strict',
                 path: '/api/refresh-token'
             });
-            return res.status(401).json({ message: 'Invalid refresh token' });
+            return res.status(401).json({
+                message: 'Invalid or blacklisted refresh token',
+                code: 'TOKEN_INVALID'
+            });
         }
 
         // Generate new tokens
@@ -117,23 +123,53 @@ exports.refreshToken = async (req, res) => {
         // Set new refresh token in cookie
         setRefreshTokenCookie(res, newRefreshToken.token);
 
-        res.json({ accessToken });
+        res.json({
+            accessToken,
+            details: {
+                tokenRotated: true,
+                expiresAt: newRefreshToken.expiresAt
+            }
+        });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error refreshing token' });
+        console.error('Error refreshing token:', error);
+        if (error.message === 'Token has been invalidated') {
+            return res.status(401).json({
+                message: 'Token has been invalidated',
+                code: 'TOKEN_INVALIDATED'
+            });
+        }
+        res.status(500).json({
+            message: 'Error refreshing token',
+            code: 'SERVER_ERROR'
+        });
     }
 };
 
 exports.logout = async (req, res) => {
     try {
         const { refreshToken } = req.cookies;
+        const userId = req.user?.userId;
 
         if (refreshToken) {
-            // Invalidate the refresh token in the database
-            await RefreshToken.deleteByToken(refreshToken);
+            try {
+                // Verify and get token data
+                const tokenData = await RefreshToken.verify(refreshToken);
+
+                if (tokenData) {
+                    // Invalidate the specific token
+                    await RefreshToken.invalidateToken(refreshToken, tokenData.user_id);
+                }
+
+                // If user is authenticated, invalidate all their tokens
+                if (userId) {
+                    await RefreshToken.deleteAllUserTokens(userId);
+                }
+            } catch (error) {
+                console.error('Error invalidating tokens:', error);
+            }
         }
 
-        // Clear the refresh token cookie
+        // Clear the refresh token cookie regardless of token validation
         res.clearCookie('refreshToken', {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -141,10 +177,22 @@ exports.logout = async (req, res) => {
             path: '/api/refresh-token'
         });
 
-        res.json({ message: 'Logged out successfully' });
+        res.json({
+            message: 'Logged out successfully',
+            details: {
+                tokensInvalidated: true,
+                cookieCleared: true
+            }
+        });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error during logout' });
+        console.error('Error during logout:', error);
+        res.status(500).json({
+            message: 'Error during logout',
+            details: {
+                tokensInvalidated: false,
+                cookieCleared: true
+            }
+        });
     }
 };
 

@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const cookieParser = require('cookie-parser');
+const apiLogger = require('./middleware/apiLogger');
+const { logSecurityEvent } = require('./services/loggerService');
 require('dotenv').config();
 
 const authController = require('./controllers/authController');
@@ -38,6 +40,31 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// API Loglama Middleware'i
+app.use(apiLogger);
+
+// Güvenlik olaylarını loglamak için özel middleware
+const securityLogger = (req, res, next) => {
+    const securityEndpoints = [
+        { path: '/api/login', method: 'POST', type: 'LOGIN_ATTEMPT' },
+        { path: '/api/register', method: 'POST', type: 'REGISTRATION' },
+        { path: '/api/request-reset', method: 'POST', type: 'PASSWORD_RESET_REQUEST' },
+        { path: '/api/reset-password', method: 'POST', type: 'PASSWORD_RESET' },
+        { path: '/api/logout', method: 'POST', type: 'LOGOUT' }
+    ];
+
+    const endpoint = securityEndpoints.find(e =>
+        e.path === req.path && e.method === req.method
+    );
+
+    if (endpoint) {
+        logSecurityEvent(req, endpoint.type);
+    }
+    next();
+};
+
+app.use(securityLogger);
 
 // Auth Routes with rate limiting
 app.post('/api/register',
@@ -161,6 +188,10 @@ app.put('/invitations/:code/preferences',
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);
+
+    // Hata loglaması
+    logApiError(req, err);
+
     if (err.code === 'LIMIT_FILE_SIZE') {
         return res.status(400).json({ message: 'File size too large. Maximum size is 5MB.' });
     }
